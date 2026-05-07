@@ -10,7 +10,11 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://images.unsplash.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Preload hero image for instant LCP -->
+  <link rel="preload" as="image" href="https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&w=1800&q=75&fm=webp" fetchpriority="high">
 
   <script>
     tailwind.config = {
@@ -42,18 +46,98 @@
       to   { opacity: 1; transform: translateY(0); }
     }
     .scroll-mt-32 { scroll-margin-top: 8rem; }
+    html { scroll-behavior: smooth; }
+
     /* Marquee / ticker for partners */
     .marquee { display: flex; gap: 4rem; animation: marquee 40s linear infinite; }
     @keyframes marquee {
       from { transform: translateX(0); }
       to   { transform: translateX(-50%); }
     }
+
     /* Hide details summary marker */
     summary { list-style: none; }
     summary::-webkit-details-marker { display: none; }
+
+    /* === SCROLL REVEAL === */
+    .reveal { opacity: 0; transform: translateY(40px); transition: opacity 0.9s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    .reveal.is-visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { opacity: 1; transform: none; transition: none; }
+    }
+
+    /* === PARALLAX HERO === */
+    .parallax-bg { will-change: transform; transform: translateZ(0); }
+
+    /* === READING PROGRESS BAR === */
+    #reading-progress {
+      position: fixed; top: 0; left: 0; height: 2px;
+      background: linear-gradient(90deg, #C8A86B 0%, #E0C892 100%);
+      width: 0%; z-index: 60; transition: width 0.1s linear;
+      box-shadow: 0 0 8px rgba(200, 168, 107, 0.4);
+    }
+
+    /* === EXIT-INTENT POPUP === */
+    #exit-popup {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(31, 27, 26, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.4s ease;
+      padding: 1rem;
+    }
+    #exit-popup.is-open { opacity: 1; pointer-events: auto; }
+    #exit-popup .modal {
+      background: #FBF8F3;
+      max-width: 520px; width: 100%;
+      padding: 3rem 2.5rem;
+      position: relative;
+      transform: scale(0.92) translateY(20px);
+      transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border-top: 4px solid #5B1A2B;
+    }
+    #exit-popup.is-open .modal { transform: scale(1) translateY(0); }
+    #exit-popup .close {
+      position: absolute; top: 1rem; right: 1rem;
+      width: 2rem; height: 2rem;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; opacity: 0.5; transition: opacity 0.2s;
+    }
+    #exit-popup .close:hover { opacity: 1; }
+
+    /* === MOBILE STICKY CART BAR === */
+    #mobile-cart-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: #1F1B1A; color: #FBF8F3;
+      padding: 0.85rem 1rem;
+      transform: translateY(110%);
+      transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+      z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem;
+      box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.15);
+    }
+    #mobile-cart-bar.is-visible { transform: translateY(0); }
+    @media (min-width: 1024px) { #mobile-cart-bar { display: none; } }
+
+    /* === IMAGE FADE-IN (lazy loaded) === */
+    img[loading="lazy"] { opacity: 0; transition: opacity 0.6s ease; }
+    img[loading="lazy"].is-loaded,
+    img[loading="lazy"].is-loaded ~ img { opacity: 1; }
+    img.is-loaded { opacity: 1; }
+
+    /* === COUNTER === */
+    .counter { font-variant-numeric: tabular-nums; }
   </style>
 </head>
 <body class="antialiased">
+
+  <!-- Reading progress bar -->
+  <div id="reading-progress"></div>
 
   <!-- ───────── TOP TRUST STRIP ───────── -->
   <div class="bg-burgundy-700 text-cream-50 text-xs sm:text-[13px] py-2.5 px-4">
@@ -103,11 +187,13 @@
 
   <!-- ───────── HERO ───────── -->
   <section class="relative h-[88vh] min-h-[680px] flex items-end overflow-hidden">
-    <div class="absolute inset-0">
-      <img src="https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&w=2400&q=80"
+    <div class="absolute inset-0 parallax-bg" id="hero-bg">
+      <img src="https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&w=1800&q=75&fm=webp"
            alt="Vinice Valdobbiadene"
-           class="w-full h-full object-cover"
-           onerror="this.src='https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=2400&q=80'"/>
+           class="w-full h-[110%] object-cover"
+           fetchpriority="high"
+           decoding="async"
+           onerror="this.src='https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=1800&q=75&fm=webp'"/>
       <div class="absolute inset-0 bg-gradient-to-b from-charcoal-900/40 via-charcoal-900/15 to-charcoal-900/85"></div>
     </div>
     <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20 lg:pb-28 w-full">
@@ -173,7 +259,7 @@
   </section>
 
   <!-- ───────── BESTSELLERY ───────── -->
-  <section id="bestsellery" class="py-20 lg:py-28 scroll-mt-32">
+  <section id="bestsellery" class="py-20 lg:py-28 scroll-mt-32 reveal">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-14 lg:mb-20">
         <span class="text-[11px] tracking-[0.35em] text-burgundy-700 font-medium uppercase mb-4 inline-block">Najobľúbenejšie</span>
@@ -191,7 +277,7 @@
             <button class="absolute top-4 right-4 z-10 w-9 h-9 bg-cream-50/85 backdrop-blur rounded-full flex items-center justify-center hover:bg-cream-50 transition" aria-label="Uložiť">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
             </button>
-            <img src="https://images.unsplash.com/photo-1547595628-c61a29f496f0?auto=format&fit=crop&w=800&q=80" alt="Riva dei Frati Prosecco" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
+            <img src="https://images.unsplash.com/photo-1547595628-c61a29f496f0?auto=format&fit=crop&w=600&q=75&fm=webp" alt="Riva dei Frati Prosecco" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
             <div class="absolute inset-x-3 bottom-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition">
               <button class="w-full bg-charcoal-900 text-cream-50 text-[11px] tracking-[0.2em] font-medium py-3 uppercase hover:bg-burgundy-700 transition">+ Pridať do košíka</button>
             </div>
@@ -212,7 +298,7 @@
             <button class="absolute top-4 right-4 z-10 w-9 h-9 bg-cream-50/85 backdrop-blur rounded-full flex items-center justify-center hover:bg-cream-50 transition" aria-label="Uložiť">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
             </button>
-            <img src="https://images.unsplash.com/photo-1568213816046-0ee1c42bd559?auto=format&fit=crop&w=800&q=80" alt="Riesling Alsace Grand Cru" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
+            <img src="https://images.unsplash.com/photo-1568213816046-0ee1c42bd559?auto=format&fit=crop&w=600&q=75&fm=webp" alt="Riesling Alsace Grand Cru" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
             <div class="absolute inset-x-3 bottom-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition">
               <button class="w-full bg-charcoal-900 text-cream-50 text-[11px] tracking-[0.2em] font-medium py-3 uppercase hover:bg-burgundy-700 transition">+ Pridať do košíka</button>
             </div>
@@ -232,7 +318,7 @@
             <button class="absolute top-4 right-4 z-10 w-9 h-9 bg-cream-50/85 backdrop-blur rounded-full flex items-center justify-center hover:bg-cream-50 transition" aria-label="Uložiť">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
             </button>
-            <img src="https://images.unsplash.com/photo-1553361371-9b22f78e8b1d?auto=format&fit=crop&w=800&q=80" alt="Mailly Grand Cru Champagne" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
+            <img src="https://images.unsplash.com/photo-1553361371-9b22f78e8b1d?auto=format&fit=crop&w=600&q=75&fm=webp" alt="Mailly Grand Cru Champagne" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
             <div class="absolute inset-x-3 bottom-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition">
               <button class="w-full bg-charcoal-900 text-cream-50 text-[11px] tracking-[0.2em] font-medium py-3 uppercase hover:bg-burgundy-700 transition">+ Pridať do košíka</button>
             </div>
@@ -253,7 +339,7 @@
             <button class="absolute top-4 right-4 z-10 w-9 h-9 bg-cream-50/85 backdrop-blur rounded-full flex items-center justify-center hover:bg-cream-50 transition" aria-label="Uložiť">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
             </button>
-            <img src="https://images.unsplash.com/photo-1566108254395-2ec1f2167ec3?auto=format&fit=crop&w=800&q=80" alt="Bosio 00 Sparkling" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
+            <img src="https://images.unsplash.com/photo-1566108254395-2ec1f2167ec3?auto=format&fit=crop&w=600&q=75&fm=webp" alt="Bosio 00 Sparkling" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
             <div class="absolute inset-x-3 bottom-3 opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition">
               <button class="w-full bg-charcoal-900 text-cream-50 text-[11px] tracking-[0.2em] font-medium py-3 uppercase hover:bg-burgundy-700 transition">+ Pridať do košíka</button>
             </div>
@@ -277,7 +363,7 @@
   </section>
 
   <!-- ───────── KATEGÓRIE ───────── -->
-  <section id="kategorie" class="py-20 lg:py-28 bg-cream-100 scroll-mt-32">
+  <section id="kategorie" class="py-20 lg:py-28 bg-cream-100 scroll-mt-32 reveal">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between mb-12 gap-4">
         <div>
@@ -288,7 +374,7 @@
       </div>
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-5">
         <a href="#" class="group relative aspect-[3/4] overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1547595628-c61a29f496f0?auto=format&fit=crop&w=900&q=80" alt="Prosecco" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
+          <img src="https://images.unsplash.com/photo-1547595628-c61a29f496f0?auto=format&fit=crop&w=700&q=75&fm=webp" alt="Prosecco" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
           <div class="absolute inset-0 bg-gradient-to-t from-charcoal-900/90 via-charcoal-900/30 to-transparent"></div>
           <div class="absolute inset-x-6 bottom-6 text-cream-50">
             <div class="text-[10px] tracking-[0.3em] text-gold-300 mb-1.5 uppercase">12 fliaš</div>
@@ -297,7 +383,7 @@
           </div>
         </a>
         <a href="#" class="group relative aspect-[3/4] overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1568213816046-0ee1c42bd559?auto=format&fit=crop&w=900&q=80" alt="Biele vína" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
+          <img src="https://images.unsplash.com/photo-1568213816046-0ee1c42bd559?auto=format&fit=crop&w=700&q=75&fm=webp" alt="Biele vína" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
           <div class="absolute inset-0 bg-gradient-to-t from-charcoal-900/90 via-charcoal-900/30 to-transparent"></div>
           <div class="absolute inset-x-6 bottom-6 text-cream-50">
             <div class="text-[10px] tracking-[0.3em] text-gold-300 mb-1.5 uppercase">7 fliaš</div>
@@ -306,7 +392,7 @@
           </div>
         </a>
         <a href="#" class="group relative aspect-[3/4] overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=900&q=80" alt="Červené vína" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
+          <img src="https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=700&q=75&fm=webp" alt="Červené vína" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
           <div class="absolute inset-0 bg-gradient-to-t from-charcoal-900/90 via-charcoal-900/30 to-transparent"></div>
           <div class="absolute inset-x-6 bottom-6 text-cream-50">
             <div class="text-[10px] tracking-[0.3em] text-gold-300 mb-1.5 uppercase">6 fliaš</div>
@@ -315,7 +401,7 @@
           </div>
         </a>
         <a href="#" class="group relative aspect-[3/4] overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1566108254395-2ec1f2167ec3?auto=format&fit=crop&w=900&q=80" alt="Nealko" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
+          <img src="https://images.unsplash.com/photo-1566108254395-2ec1f2167ec3?auto=format&fit=crop&w=700&q=75&fm=webp" alt="Nealko" loading="lazy" decoding="async" class="w-full h-full object-cover group-hover:scale-105 transition duration-700"/>
           <div class="absolute inset-0 bg-gradient-to-t from-charcoal-900/90 via-charcoal-900/30 to-transparent"></div>
           <div class="absolute inset-x-6 bottom-6 text-cream-50">
             <div class="text-[10px] tracking-[0.3em] text-gold-300 mb-1.5 uppercase">2 fľaše</div>
@@ -328,7 +414,7 @@
   </section>
 
   <!-- ───────── PREČO MY ───────── -->
-  <section id="preco" class="py-20 lg:py-32 scroll-mt-32">
+  <section id="preco" class="py-20 lg:py-32 scroll-mt-32 reveal">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid lg:grid-cols-12 gap-12 lg:gap-20 items-start">
         <div class="lg:col-span-5 lg:sticky lg:top-32">
@@ -382,9 +468,9 @@
   </section>
 
   <!-- ───────── WINE PICKER / KVÍZ ───────── -->
-  <section id="kviz" class="py-20 lg:py-28 bg-burgundy-900 text-cream-50 relative overflow-hidden scroll-mt-32">
+  <section id="kviz" class="py-20 lg:py-28 bg-burgundy-900 text-cream-50 relative overflow-hidden scroll-mt-32 reveal">
     <div class="absolute inset-0 opacity-10">
-      <img src="https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=2000&q=80" alt="" class="w-full h-full object-cover"/>
+      <img src="https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=1400&q=70&fm=webp" alt="" loading="lazy" decoding="async" class="w-full h-full object-cover"/>
     </div>
     <div class="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
       <span class="text-[11px] tracking-[0.35em] text-gold-300 font-medium uppercase mb-4 inline-block">Pomôžeme Vám</span>
@@ -422,12 +508,12 @@
   </section>
 
   <!-- ───────── REVIEWS ───────── -->
-  <section class="py-20 lg:py-28">
+  <section class="py-20 lg:py-28 reveal">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="text-center mb-14 lg:mb-16">
         <div class="flex items-center justify-center gap-3 mb-5">
           <span class="text-2xl tracking-wider text-gold-500">★★★★★</span>
-          <span class="text-charcoal-700 text-sm tracking-wide">4,9 / 5 — <strong>172 hodnotení</strong> · Google</span>
+          <span class="text-charcoal-700 text-sm tracking-wide"><span class="counter" data-target="4.9" data-decimals="1" data-suffix="">0</span> / 5 — <strong><span class="counter" data-target="172">0</span> hodnotení</strong> · Google</span>
         </div>
         <h2 class="font-display text-4xl sm:text-5xl lg:text-[3.5rem] font-light leading-[1.05] text-balance">Čo hovoria <em class="italic">naši zákazníci</em>.</h2>
       </div>
@@ -470,11 +556,11 @@
   </section>
 
   <!-- ───────── EDITORIAL / ABOUT BLOCK ───────── -->
-  <section class="py-20 lg:py-28 bg-charcoal-900 text-cream-50">
+  <section class="py-20 lg:py-28 bg-charcoal-900 text-cream-50 reveal">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
         <div class="relative aspect-[4/5] overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1599022672537-0c43e3a8c4d4?auto=format&fit=crop&w=1200&q=80" alt="Vinár v pivnici" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=1200&q=80'"/>
+          <img src="https://images.unsplash.com/photo-1599022672537-0c43e3a8c4d4?auto=format&fit=crop&w=900&q=75&fm=webp" alt="Vinár v pivnici" loading="lazy" decoding="async" class="w-full h-full object-cover" onerror="this.src='https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=900&q=75&fm=webp'"/>
         </div>
         <div>
           <span class="text-[11px] tracking-[0.35em] text-gold-300 font-medium uppercase mb-4 inline-block">Náš príbeh</span>
@@ -569,7 +655,7 @@
   <!-- ───────── FINAL CTA ───────── -->
   <section class="relative py-24 lg:py-36 overflow-hidden">
     <div class="absolute inset-0">
-      <img src="https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=2400&q=80" alt="" class="w-full h-full object-cover"/>
+      <img src="https://images.unsplash.com/photo-1474722883778-792e7990302f?auto=format&fit=crop&w=1600&q=70&fm=webp" alt="" loading="lazy" decoding="async" class="w-full h-full object-cover"/>
       <div class="absolute inset-0 bg-charcoal-900/75"></div>
     </div>
     <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-cream-50">
@@ -646,6 +732,205 @@
       </div>
     </div>
   </footer>
+
+  <!-- ───────── EXIT-INTENT POPUP ───────── -->
+  <div id="exit-popup" role="dialog" aria-modal="true" aria-labelledby="exit-popup-title">
+    <div class="modal">
+      <button class="close" aria-label="Zatvoriť" onclick="closeExitPopup()">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+      <div class="text-center">
+        <div class="text-[10px] tracking-[0.35em] text-burgundy-700 font-medium uppercase mb-3">Počkajte chvíľu</div>
+        <h3 id="exit-popup-title" class="font-display text-3xl sm:text-4xl font-light leading-tight mb-3 text-charcoal-900">
+          <em class="italic">-10 %</em> pre Vás na <em class="italic">prvý nákup</em>.
+        </h3>
+        <p class="text-charcoal-700/80 text-sm leading-relaxed mb-6">
+          Pridajte si nás k mailu a my pošleme zľavový kód spolu s krátkym sprievodcom: <strong>"Ako vybrať Prosecco, ktoré nesklame"</strong>.
+        </p>
+        <form class="space-y-3" onsubmit="event.preventDefault(); handleExitForm(this)">
+          <input type="email" required placeholder="vas@email.sk"
+                 class="w-full bg-cream-100 border border-cream-200 px-5 py-3.5 text-charcoal-900 placeholder:text-charcoal-700/40 focus:outline-none focus:border-burgundy-700 transition">
+          <button type="submit" class="w-full bg-burgundy-700 text-cream-50 px-8 py-3.5 text-[12px] tracking-[0.2em] font-medium hover:bg-burgundy-900 transition uppercase">
+            Získať zľavu -10 %
+          </button>
+        </form>
+        <p class="text-[10px] text-charcoal-700/45 mt-4 leading-relaxed">
+          Bez spamu. Kedykoľvek odhlásiť. <a href="#" class="underline hover:text-burgundy-700">GDPR</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───────── MOBILE STICKY CART BAR ───────── -->
+  <div id="mobile-cart-bar">
+    <div class="text-xs">
+      <div class="font-display text-base leading-none mb-0.5">Najlepšie Prosecco</div>
+      <div class="text-cream-100/65 text-[11px]">od <strong class="text-gold-300">13 €</strong> · doprava zdarma od 60 €</div>
+    </div>
+    <a href="#bestsellery" class="bg-gold-500 text-charcoal-900 px-5 py-3 text-[11px] tracking-[0.2em] font-medium uppercase whitespace-nowrap">
+      Vybrať →
+    </a>
+  </div>
+
+  <!-- ───────── INTERACTIVITY ───────── -->
+  <script>
+  (function () {
+    'use strict';
+
+    /* ═══ 1. SCROLL REVEAL (Intersection Observer) ═══ */
+    if ('IntersectionObserver' in window) {
+      const revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+      document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+    } else {
+      document.querySelectorAll('.reveal').forEach(el => el.classList.add('is-visible'));
+    }
+
+    /* ═══ 2. READING PROGRESS BAR ═══ */
+    const progressBar = document.getElementById('reading-progress');
+    let ticking = false;
+    function updateProgress() {
+      const scrollTop = window.scrollY;
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const percent = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+      progressBar.style.width = percent + '%';
+      ticking = false;
+    }
+
+    /* ═══ 3. PARALLAX HERO ═══ */
+    const heroBg = document.getElementById('hero-bg');
+    function updateParallax() {
+      if (!heroBg) return;
+      const scrolled = window.scrollY;
+      if (scrolled < window.innerHeight) {
+        heroBg.style.transform = `translateY(${scrolled * 0.35}px)`;
+      }
+    }
+
+    /* ═══ 4. MOBILE STICKY CART BAR ═══ */
+    const cartBar = document.getElementById('mobile-cart-bar');
+    function updateCartBar() {
+      if (!cartBar) return;
+      if (window.innerWidth >= 1024) return;
+      const triggerPoint = window.innerHeight * 1.2;
+      if (window.scrollY > triggerPoint) {
+        cartBar.classList.add('is-visible');
+      } else {
+        cartBar.classList.remove('is-visible');
+      }
+    }
+
+    /* Combined scroll handler with rAF */
+    function onScroll() {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          updateProgress();
+          updateParallax();
+          updateCartBar();
+        });
+        ticking = true;
+      }
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    updateProgress(); updateCartBar();
+
+    /* ═══ 5. ANIMATED NUMBER COUNTERS ═══ */
+    if ('IntersectionObserver' in window) {
+      const counterObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (!entry.isIntersecting) return;
+          const el = entry.target;
+          const target = parseFloat(el.dataset.target);
+          const decimals = parseInt(el.dataset.decimals || '0', 10);
+          const duration = 1400;
+          const startTime = performance.now();
+          function step(now) {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            const current = target * eased;
+            el.textContent = decimals > 0
+              ? current.toFixed(decimals).replace('.', ',')
+              : Math.round(current).toLocaleString('sk-SK');
+            if (progress < 1) requestAnimationFrame(step);
+            else el.textContent = decimals > 0
+              ? target.toFixed(decimals).replace('.', ',')
+              : target.toLocaleString('sk-SK');
+          }
+          requestAnimationFrame(step);
+          counterObserver.unobserve(el);
+        });
+      }, { threshold: 0.5 });
+      document.querySelectorAll('.counter').forEach(el => counterObserver.observe(el));
+    }
+
+    /* ═══ 6. EXIT-INTENT POPUP ═══ */
+    const popup = document.getElementById('exit-popup');
+    let popupShown = sessionStorage.getItem('primavino_exit_popup_shown') === '1';
+    let popupArmed = false;
+
+    function showExitPopup() {
+      if (popupShown) return;
+      popup.classList.add('is-open');
+      popupShown = true;
+      sessionStorage.setItem('primavino_exit_popup_shown', '1');
+      document.body.style.overflow = 'hidden';
+    }
+    window.closeExitPopup = function () {
+      popup.classList.remove('is-open');
+      document.body.style.overflow = '';
+    };
+    window.handleExitForm = function (form) {
+      const email = form.querySelector('input[type=email]').value;
+      const btn = form.querySelector('button');
+      btn.textContent = 'Odoslané ✓ Skontrolujte e-mail';
+      btn.disabled = true;
+      btn.style.background = '#7A8B7B';
+      // In production: POST to /api/subscribe or Klaviyo / Mailchimp endpoint
+      console.log('Newsletter signup:', email);
+      setTimeout(() => closeExitPopup(), 2200);
+    };
+
+    // Arm popup only after user has spent 8s on page (avoids harassment)
+    setTimeout(() => { popupArmed = true; }, 8000);
+
+    // Desktop: trigger on mouseleave from top of viewport
+    document.addEventListener('mouseleave', (e) => {
+      if (e.clientY <= 0 && popupArmed && !popupShown) showExitPopup();
+    });
+    // Mobile: trigger on rapid scroll-up after deep scroll (alternative exit signal)
+    let lastScroll = 0;
+    let scrollUpStreak = 0;
+    window.addEventListener('scroll', () => {
+      const cur = window.scrollY;
+      if (window.innerWidth < 1024 && popupArmed && !popupShown && cur > 800) {
+        if (cur < lastScroll - 30) {
+          scrollUpStreak++;
+          if (scrollUpStreak > 2) showExitPopup();
+        } else {
+          scrollUpStreak = 0;
+        }
+      }
+      lastScroll = cur;
+    }, { passive: true });
+
+    // Close on backdrop click + Esc
+    popup.addEventListener('click', (e) => { if (e.target === popup) closeExitPopup(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeExitPopup(); });
+
+    /* ═══ 7. IMAGE FADE-IN ON LOAD ═══ */
+    document.querySelectorAll('img[loading="lazy"]').forEach(img => {
+      if (img.complete) img.classList.add('is-loaded');
+      else img.addEventListener('load', () => img.classList.add('is-loaded'), { once: true });
+    });
+  })();
+  </script>
 
 </body>
 </html>
